@@ -1,0 +1,74 @@
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import PassiveAggressiveClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
+import pandas as pd
+import re
+
+# Download necessary NLTK data
+nltk.download('punkt')
+nltk.download('stopwords')
+
+# Step 1: Data Preprocessing
+def preprocess_text(text):
+    # Convert to lowercase
+    text = text.lower()
+    # Remove non-alphanumeric characters
+    text = re.sub(r'\W', ' ', text)
+    # Tokenize the text
+    words = word_tokenize(text)
+    # Remove stopwords
+    stop_words = set(stopwords.words('english'))
+    filtered_words = [word for word in words if word not in stop_words]
+    # Stemming using PorterStemmer
+    stemmer = PorterStemmer()
+    stemmed_words = [stemmer.stem(word) for word in filtered_words]
+    # Join the stemmed words back into a string
+    preprocessed_text = ' '.join(stemmed_words)
+    return preprocessed_text
+
+# Step 2: Feature Extraction using TF-IDF
+def tfidf_features(X_train, X_test):
+    tfidf_vectorizer = TfidfVectorizer(max_df=0.7)
+    tfidf_train = tfidf_vectorizer.fit_transform(X_train)
+    tfidf_test = tfidf_vectorizer.transform(X_test)
+    return tfidf_train, tfidf_test, tfidf_vectorizer
+
+# Step 3: Model Training and Evaluation
+def train_and_evaluate_model(X_train_tfidf, y_train, X_test_tfidf, y_test):
+    # Initialize Passive Aggressive Classifier
+    classifier = PassiveAggressiveClassifier(max_iter=50)
+    classifier.fit(X_train_tfidf, y_train)
+    # Predict on the test set
+    y_pred = classifier.predict(X_test_tfidf)
+    # Evaluate accuracy
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f'Accuracy: {accuracy}')
+    # Confusion matrix
+    confusion_mat = confusion_matrix(y_test, y_pred)
+    print(f'Confusion Matrix:\n{confusion_mat}')
+
+# Example usage
+if __name__ == '__main__':
+    # Load dataset (replace 'your_dataset.csv' with the path to your dataset)
+    # The dataset should have at least two columns: 'text' and 'label'
+    df = pd.read_csv('your_dataset.csv')
+    X = df['text']
+    y = df['label']
+
+    # Split the dataset into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Preprocess texts
+    X_train_processed = [preprocess_text(text) for text in X_train]
+    X_test_processed = [preprocess_text(text) for text in X_test]
+
+    # Extract TF-IDF features
+    X_train_tfidf, X_test_tfidf, tfidf_vectorizer = tfidf_features(X_train_processed, X_test_processed)
+
+    # Train and evaluate the model
+    train_and_evaluate_model(X_train_tfidf, y_train, X_test_tfidf, y_test)
